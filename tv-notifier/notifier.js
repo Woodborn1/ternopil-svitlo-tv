@@ -12,10 +12,13 @@ const config = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
 const TV_IP = process.env.TV_IP || config.tvIp;
 const QUEUE = process.env.QUEUE || config.queue || "GPV5.1";
 const POLL_MS = (config.pollIntervalMinutes || 2) * 60 * 1000;
-const NOTIFY_BEFORE = config.notifyBeforeMinutes || [30, 10];
+const NOTIFY_BEFORE = config.notifyBeforeMinutes || [30, 20, 10];
+const NOTICE_MS = (config.noticeSeconds || 60) * 1000; // how long each notice stays on screen
+const TOAST_REPEAT_MS = 5000;
 const NOTIFY_ON_MAYBE = config.notifyOnMaybe !== false;
 const IS_TEST = process.argv.includes("--test");
 const IS_TEST_CHANGE = process.argv.includes("--test-change");
+const IS_TEST_WARNING = process.argv.includes("--test-warning");
 
 let tvClient = null;
 let tvConnected = false;
@@ -70,14 +73,17 @@ function connectTv() {
   tvClient.on("connect", () => {
     tvConnected = true;
     console.log("[TV] Підключено успішно!");
-    if (IS_TEST_CHANGE) {
+    if (IS_TEST_WARNING) {
+      sendToast(`Через 30 хвилин не буде світла! (тест, черга ${QUEUE.replace("GPV", "")})`);
+      setTimeout(() => process.exit(0), NOTICE_MS + 3000);
+    } else if (IS_TEST_CHANGE) {
       pollSchedule().then(() => {
         sendToast(`Графік (черга ${QUEUE.replace("GPV", "")}) змінився! ${describeOutages(latestDays)}`);
-        setTimeout(() => process.exit(0), 2500);
+        setTimeout(() => process.exit(0), NOTICE_MS + 3000);
       });
     } else if (IS_TEST) {
       sendToast(`Тест: Черга ${QUEUE.replace("GPV", "")} підключена! Сповіщення працюють.`);
-      setTimeout(() => process.exit(0), 2500);
+      setTimeout(() => process.exit(0), NOTICE_MS + 3000);
     }
   });
 
@@ -101,11 +107,36 @@ function sendToast(message) {
     console.log("  (Телевізор зараз не в мережі / вимкнений, сповіщення пропущено)");
     return;
   }
-  tvClient.request("ssap://system.notifications/createToast", { message }, (err) => {
-    if (err) {
-      console.error("[TV TOAST ERROR]", err.message || err);
+  // A plain toast vanishes after ~5 s. Prefer an alert window that we close
+  // ourselves after NOTICE_MS; if the TV refuses alerts, repeat the toast.
+  tvClient.request(
+    "ssap://system.notifications/createAlert",
+    { message, buttons: [{ label: "OK" }] },
+    (err, res) => {
+      if (!err && res && res.alertId) {
+        setTimeout(() => {
+          if (tvConnected) {
+            tvClient.request("ssap://system.notifications/closeAlert", { alertId: res.alertId }, () => {});
+          }
+        }, NOTICE_MS);
+        return;
+      }
+      console.log("  (alert недоступний, повторюю звичайне сповіщення)", err ? err.message || err : "");
+      repeatToast(message);
     }
-  });
+  );
+}
+
+function repeatToast(message) {
+  const endAt = Date.now() + NOTICE_MS;
+  const send = () => {
+    if (!tvConnected || Date.now() >= endAt) return;
+    tvClient.request("ssap://system.notifications/createToast", { message }, (err) => {
+      if (err) console.error("[TV TOAST ERROR]", err.message || err);
+    });
+    setTimeout(send, TOAST_REPEAT_MS);
+  };
+  send();
 }
 
 function hourToHalves(code) {
@@ -245,8 +276,8 @@ function checkUpcomingOutages() {
         const key = `${s.startMs}_${threshold}`;
         if (!sentReminders.has(key)) {
           sentReminders.add(key);
-          const kind = s.state === "off" ? "відключення світла" : "можливе відключення";
-          sendToast(`Через ${minsLeft} хв (${timeStr}) ${kind}! Черга ${qLabel}`);
+          const kind = s.state === "off" ? "не буде світла" : "можливо не буде світла";
+          sendToast(`Через ${threshold} хвилин ${kind}! (о ${timeStr}, черга ${qLabel})`);
         }
       }
     }
@@ -256,7 +287,7 @@ function checkUpcomingOutages() {
 
 connectTv();
 
-if (!IS_TEST && !IS_TEST_CHANGE) {
+if (!IS_TEST && !IS_TEST_CHANGE && !IS_TEST_WARNING) {
   console.log(`[START] Моніторинг Тернопільобленерго для черги ${QUEUE} (інтервал ${POLL_MS / 60000} хв)`);
   pollSchedule().then(checkUpcomingOutages);
   setInterval(pollSchedule, POLL_MS);

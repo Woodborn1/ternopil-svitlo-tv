@@ -1,5 +1,5 @@
 {
-  "tvIp": "192.168.1.100",
+  "tvIp": "192.168.0.112",
   "queue": "GPV5.1",
   "pollIntervalMinutes": 2,
   "notifyBeforeMinutes": [30, 10],

@@ -4,3 +4,4 @@ node_modules/
 .DS_Store
 tv-notifier/.lgtv-key
 tv-notifier/notifier.log
+tv-notifier/.lgtv-key*

@@ -15,6 +15,7 @@ const POLL_MS = (config.pollIntervalMinutes || 2) * 60 * 1000;
 const NOTIFY_BEFORE = config.notifyBeforeMinutes || [30, 10];
 const NOTIFY_ON_MAYBE = config.notifyOnMaybe !== false;
 const IS_TEST = process.argv.includes("--test");
+const IS_TEST_CHANGE = process.argv.includes("--test-change");
 
 let tvClient = null;
 let tvConnected = false;
@@ -69,7 +70,12 @@ function connectTv() {
   tvClient.on("connect", () => {
     tvConnected = true;
     console.log("[TV] Підключено успішно!");
-    if (IS_TEST) {
+    if (IS_TEST_CHANGE) {
+      pollSchedule().then(() => {
+        sendToast(`Графік (черга ${QUEUE.replace("GPV", "")}) змінився! ${describeOutages(latestDays)}`);
+        setTimeout(() => process.exit(0), 2500);
+      });
+    } else if (IS_TEST) {
       sendToast(`Тест: Черга ${QUEUE.replace("GPV", "")} підключена! Сповіщення працюють.`);
       setTimeout(() => process.exit(0), 2500);
     }
@@ -131,6 +137,50 @@ function pad2(n) {
   return n < 10 ? "0" + n : String(n);
 }
 
+function fmtTime(ms) {
+  const d = new Date(ms);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+// Upcoming outage intervals, e.g. "Відключення: сьогодні 14:00-17:00; завтра 08:00-11:00"
+function describeOutages(days) {
+  const slots = buildTimeline(days);
+  const nowMs = Date.now();
+  const isOut = (s) => s.state === "off" || (NOTIFY_ON_MAYBE && s.state === "maybe");
+  const intervals = [];
+  for (let i = 0; i < slots.length; i++) {
+    if (!isOut(slots[i])) continue;
+    let j = i;
+    let maybeOnly = true;
+    while (j < slots.length && isOut(slots[j])) {
+      if (slots[j].state === "off") maybeOnly = false;
+      j++;
+    }
+    const startMs = slots[i].startMs;
+    const endMs = slots[j - 1].startMs + 1800 * 1000;
+    if (endMs > nowMs) intervals.push({ startMs, endMs, maybeOnly });
+    i = j - 1;
+  }
+  if (!intervals.length) return "Відключень не заплановано.";
+
+  const todayKey = new Date(nowMs).toDateString();
+  const tomorrowKey = new Date(nowMs + 86400000).toDateString();
+  const groups = [];
+  for (const iv of intervals) {
+    const key = new Date(iv.startMs).toDateString();
+    const label = key === todayKey ? "сьогодні" : key === tomorrowKey ? "завтра" : (() => {
+      const d = new Date(iv.startMs);
+      return `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}`;
+    })();
+    const end = fmtTime(iv.endMs) === "00:00" ? "24:00" : fmtTime(iv.endMs);
+    const text = `${fmtTime(iv.startMs)}-${end}${iv.maybeOnly ? " (можл.)" : ""}`;
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.items.push(text);
+    else groups.push({ label, items: [text] });
+  }
+  return "Відключення: " + groups.map((g) => `${g.label} ${g.items.join(", ")}`).join("; ");
+}
+
 async function pollSchedule() {
   try {
     const raw = await fetchJson(DATA_URL);
@@ -147,7 +197,7 @@ async function pollSchedule() {
 
     if (lastScheduleSnapshot !== null && snapshot !== lastScheduleSnapshot) {
       const qLabel = QUEUE.replace("GPV", "");
-      sendToast(`УВАГА! Графік відключень (черга ${qLabel}) змінився! Оновлено: ${sourceUpdate}`);
+      sendToast(`Графік (черга ${qLabel}) змінився! ${describeOutages(days)}`);
       // Clear upcoming reminders so new times get notified cleanly
       sentReminders.clear();
     }
@@ -206,7 +256,7 @@ function checkUpcomingOutages() {
 
 connectTv();
 
-if (!IS_TEST) {
+if (!IS_TEST && !IS_TEST_CHANGE) {
   console.log(`[START] Моніторинг Тернопільобленерго для черги ${QUEUE} (інтервал ${POLL_MS / 60000} хв)`);
   pollSchedule().then(checkUpcomingOutages);
   setInterval(pollSchedule, POLL_MS);

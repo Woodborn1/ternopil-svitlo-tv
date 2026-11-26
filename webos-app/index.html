@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>Світло 5.1</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #0b101b;
+      color: #f1f5f9;
+      font-family: "LG Smart UI", Arial, sans-serif;
+      text-align: center;
+    }
+    .msg {
+      padding-top: 22%;
+      font-size: 40px;
+    }
+    .sub {
+      margin-top: 16px;
+      font-size: 24px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+  <div class="msg">Завантаження графіка Тернопільобленерго...</div>
+  <div class="sub" id="urlHint"></div>
+  <script>
+    // Замініть посилання нижче на вашу реальну адресу на Render після деплою!
+    var RENDER_URL = "https://YOUR-APP-NAME.onrender.com/";
+    document.getElementById("urlHint").innerHTML = RENDER_URL;
+    setTimeout(function () {
+      window.location.replace(RENDER_URL);
+    }, 300);
+  </script>
+</body>
+</html>

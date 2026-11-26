@@ -1,0 +1,13 @@
+{
+  "id": "ua.ternopil.svitlo.tv",
+  "version": "1.0.0",
+  "vendor": "Ternopil Svitlo",
+  "type": "web",
+  "main": "index.html",
+  "title": "Світло 5.1",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "bgColor": "#0b101b",
+  "iconColor": "#2563eb",
+  "resolution": "1920x1080"
+}

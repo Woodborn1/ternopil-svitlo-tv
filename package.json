@@ -1,0 +1,13 @@
+{
+  "name": "ternopil-svitlo-tv",
+  "version": "1.0.0",
+  "description": "LG webOS 3.0 TV app & live notifier for Ternopiloblenergo (TOE) power outage schedules",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "notifier": "node tv-notifier/notifier.js"
+  },
+  "dependencies": {
+    "lgtv2": "^1.6.1"
+  }
+}

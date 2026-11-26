@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Світло — Тернопіль (Черга 5.1)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #0b101b;
+      color: #f1f5f9;
+      font-family: "LG Smart UI", "Segoe UI", Arial, sans-serif;
+      overflow: hidden;
+    }
+    .page {
+      padding: 36px 48px;
+      height: 100%;
+    }
+    /* Top Header */
+    .header {
+      width: 100%;
+      display: table;
+      margin-bottom: 28px;
+      border-bottom: 2px solid #1e293b;
+      padding-bottom: 20px;
+    }
+    .header-left {
+      display: table-cell;
+      vertical-align: middle;
+    }
+    .header-right {
+      display: table-cell;
+      vertical-align: middle;
+      text-align: right;
+    }
+    .title {
+      font-size: 42px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 0.5px;
+    }
+    .queue-badge {
+      display: inline-block;
+      background-color: #2563eb;
+      color: #ffffff;
+      font-size: 36px;
+      font-weight: 700;
+      padding: 6px 22px;
+      border-radius: 12px;
+      margin-left: 18px;
+      vertical-align: middle;
+    }
+    .clock {
+      font-size: 52px;
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+    .updated {
+      font-size: 22px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    /* Alert Banner when schedule changed */
+    .change-banner {
+      display: none;
+      background-color: #f59e0b;
+      color: #0b101b;
+      font-size: 28px;
+      font-weight: 700;
+      padding: 14px 24px;
+      border-radius: 12px;
+      margin-bottom: 22px;
+      text-align: center;
+    }
+    .change-banner.visible {
+      display: block;
+    }
+
+    /* Main Status Card */
+    .status-card {
+      width: 100%;
+      display: table;
+      border-radius: 20px;
+      padding: 30px 38px;
+      margin-bottom: 32px;
+      background-color: #162033;
+      border: 3px solid #334155;
+    }
+    .status-card.state-on {
+      background-color: #0d2b1f;
+      border-color: #22c55e;
+    }
+    .status-card.state-off {
+      background-color: #2f1116;
+      border-color: #ef4444;
+    }
+    .status-card.state-maybe {
+      background-color: #2f230b;
+      border-color: #f59e0b;
+    }
+    .status-left {
+      display: table-cell;
+      vertical-align: middle;
+      width: 55%;
+    }
+    .status-right {
+      display: table-cell;
+      vertical-align: middle;
+      text-align: right;
+      width: 45%;
+    }
+    .status-label {
+      font-size: 24px;
+      color: #cbd5e1;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+    }
+    .status-main {
+      font-size: 60px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .state-on .status-main { color: #4ade80; }
+    .state-off .status-main { color: #f87171; }
+    .state-maybe .status-main { color: #fbbf24; }
+
+    .next-label {
+      font-size: 24px;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+    }
+    .next-time {
+      font-size: 48px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+    .next-sub {
+      font-size: 24px;
+      color: #94a3b8;
+      margin-top: 6px;
+    }
+
+    /* Schedule Day Blocks */
+    .day-section {
+      margin-bottom: 26px;
+    }
+    .day-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-bottom: 14px;
+    }
+    .hours-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 6px 0;
+      table-layout: fixed;
+    }
+    .hour-cell {
+      border-radius: 10px;
+      text-align: center;
+      padding: 12px 2px;
+      background-color: #1e293b;
+      border: 2px solid transparent;
+      vertical-align: middle;
+    }
+    .hour-num {
+      font-size: 22px;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 8px;
+    }
+    .hour-bar {
+      height: 26px;
+      width: 82%;
+      margin: 0 auto;
+      border-radius: 6px;
+      overflow: hidden;
+      background-color: #334155;
+    }
+    .half {
+      display: inline-block;
+      width: 50%;
+      height: 100%;
+      vertical-align: top;
+    }
+    .bg-on { background-color: #22c55e; }
+    .bg-off { background-color: #ef4444; }
+    .bg-maybe { background-color: #f59e0b; }
+
+    .hour-cell.is-now {
+      border-color: #ffffff;
+      background-color: #334155;
+      box-shadow: 0 0 16px rgba(255, 255, 255, 0.45);
+    }
+    .hour-cell.is-past {
+      opacity: 0.45;
+    }
+    .hour-cell.is-changed {
+      border-color: #facc15;
+    }
+
+    /* Legend & Footer Controls */
+    .footer {
+      position: fixed;
+      bottom: 24px;
+      left: 48px;
+      right: 48px;
+      display: table;
+      width: calc(100% - 96px);
+      font-size: 22px;
+      color: #94a3b8;
+    }
+    .legend {
+      display: table-cell;
+      vertical-align: middle;
+    }
+    .controls {
+      display: table-cell;
+      vertical-align: middle;
+      text-align: right;
+    }
+    .dot {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    .legend-item {
+      margin-right: 26px;
+    }
+    .key-hint {
+      display: inline-block;
+      background-color: #1e293b;
+      border: 1px solid #475569;
+      color: #f8fafc;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-weight: 700;
+      margin: 0 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div class="header-left">
+        <span class="title">Тернопільобленерго</span>
+        <span class="queue-badge" id="queueBadge">Черга 5.1</span>
+      </div>
+      <div class="header-right">
+        <div class="clock" id="clock">--:--</div>
+        <div class="updated" id="updatedText">Завантаження графіка...</div>
+      </div>
+    </div>
+
+    <div class="change-banner" id="changeBanner">
+      УВАГА! Графік відключень щойно змінився!
+    </div>
+
+    <div class="status-card" id="statusCard">
+      <div class="status-left">
+        <div class="status-label">Зараз</div>
+        <div class="status-main" id="statusMain">Завантаження...</div>
+      </div>
+      <div class="status-right">
+        <div class="next-label" id="nextLabel">Наступна зміна</div>
+        <div class="next-time" id="nextTime">--:--</div>
+        <div class="next-sub" id="nextSub"></div>
+      </div>
+    </div>
+
+    <div id="daysContainer"></div>
+  </div>
+
+  <div class="footer">
+    <div class="legend">
+      <span class="legend-item"><span class="dot bg-on"></span>Світло є</span>
+      <span class="legend-item"><span class="dot bg-off"></span>Відключення</span>
+      <span class="legend-item"><span class="dot bg-maybe"></span>Можливе відкл.</span>
+    </div>
+    <div class="controls">
+      <span class="key-hint">◀ ▶</span> Змінити чергу
+      <span class="key-hint">OK</span> Оновити зараз
+    </div>
+  </div>
+
+  <script>
+    // ES5 only for full compatibility with LG webOS 3.0 (Chrome ~38)
+    (function () {
+      var STORAGE_KEY = "toe_selected_queue";
+      var QUEUES = [
+        "GPV1.1", "GPV1.2",
+        "GPV2.1", "GPV2.2",
+        "GPV3.1", "GPV3.2",
+        "GPV4.1", "GPV4.2",
+        "GPV5.1", "GPV5.2",
+        "GPV6.1", "GPV6.2"
+      ];
+
+      var currentQueue = "GPV5.1";
+      try {
+        var saved = localStorage.getItem(STORAGE_KEY);
+        if (saved && QUEUES.indexOf(saved) !== -1) {
+          currentQueue = saved;
+        }
+      } catch (e) {}
+
+      var lastData = null;
+
+      function pad2(n) {
+        return n < 10 ? "0" + n : "" + n;
+      }
+
+      function formatQueueLabel(q) {
+        return "Черга " + q.replace("GPV", "");
+      }
+
+      function hourToHalves(code) {
+        if (code === "no") return ["off", "off"];
+        if (code === "first") return ["off", "on"];
+        if (code === "second") return ["on", "off"];
+        if (code === "maybe") return ["maybe", "maybe"];
+        if (code === "mfirst") return ["maybe", "on"];
+        if (code === "msecond") return ["on", "maybe"];
+        return ["on", "on"];
+      }
+
+      function updateClock() {
+        var now = new Date();
+        document.getElementById("clock").innerHTML =
+          pad2(now.getHours()) + ":" + pad2(now.getMinutes());
+      }
+
+      function formatDuration(mins) {
+        if (mins <= 0) return "зараз";
+        var h = Math.floor(mins / 60);
+        var m = mins % 60;
+        if (h === 0) return "через " + m + " хв";
+        if (m === 0) return "через " + h + " год";
+        return "через " + h + " год " + m + " хв";
+      }
+
+      function buildTimeline(days) {
+        var slots = [];
+        for (var d = 0; d < days.length; d++) {
+          var dayTs = days[d].timestamp * 1000;
+          var hours = days[d].hours || {};
+          for (var h = 1; h <= 24; h++) {
+            var halves = hourToHalves(hours["" + h]);
+            var baseMs = dayTs + (h - 1) * 3600 * 1000;
+            slots.push({ startMs: baseMs, state: halves[0] });
+            slots.push({ startMs: baseMs + 1800 * 1000, state: halves[1] });
+          }
+        }
+        return slots;
+      }
+
+      function renderStatus(data) {
+        var card = document.getElementById("statusCard");
+        var statusMain = document.getElementById("statusMain");
+        var nextLabel = document.getElementById("nextLabel");
+        var nextTime = document.getElementById("nextTime");
+        var nextSub = document.getElementById("nextSub");
+
+        var slots = buildTimeline(data.days || []);
+        var nowMs = new Date().getTime();
+        var currIdx = -1;
+
+        for (var i = 0; i < slots.length; i++) {
+          if (nowMs >= slots[i].startMs && nowMs < slots[i].startMs + 1800 * 1000) {
+            currIdx = i;
+            break;
+          }
+        }
+
+        if (currIdx === -1) {
+          card.className = "status-card";
+          statusMain.innerHTML = "Немає даних";
+          nextLabel.innerHTML = "";
+          nextTime.innerHTML = "--:--";
+          nextSub.innerHTML = "";
+          return;
+        }
+
+        var currState = slots[currIdx].state;
+        if (currState === "on") {
+          card.className = "status-card state-on";
+          statusMain.innerHTML = "СВІТЛО Є";
+        } else if (currState === "off") {
+          card.className = "status-card state-off";
+          statusMain.innerHTML = "СВІТЛА НЕМАЄ";
+        } else {
+          card.className = "status-card state-maybe";
+          statusMain.innerHTML = "МОЖЛИВЕ ВІДКЛ.";
+        }
+
+        // Find next state change
+        var nextSlot = null;
+        for (var j = currIdx + 1; j < slots.length; j++) {
+          if (slots[j].state !== currState) {
+            nextSlot = slots[j];
+            break;
+          }
+        }
+
+        if (!nextSlot) {
+          nextLabel.innerHTML = "До кінця графіка";
+          nextTime.innerHTML = "без змін";
+          nextSub.innerHTML = "";
+        } else {
+          var dt = new Date(nextSlot.startMs);
+          var diffMin = Math.ceil((nextSlot.startMs - nowMs) / 60000);
+          if (nextSlot.state === "off") {
+            nextLabel.innerHTML = "Наступне відключення";
+          } else if (nextSlot.state === "on") {
+            nextLabel.innerHTML = "Світло має з'явитись";
+          } else {
+            nextLabel.innerHTML = "Можливе відключення";
+          }
+          nextTime.innerHTML = pad2(dt.getHours()) + ":" + pad2(dt.getMinutes());
+          nextSub.innerHTML = formatDuration(diffMin);
+        }
+      }
+
+      function renderDays(data) {
+        var container = document.getElementById("daysContainer");
+        var html = "";
+        var now = new Date();
+        var nowHour = now.getHours() + 1; // 1..24
+        var days = data.days || [];
+        var changedMap =
+          data.lastChange && data.lastChange.changedHours
+            ? data.lastChange.changedHours
+            : {};
+
+        for (var d = 0; d < days.length; d++) {
+          var day = days[d];
+          var isToday = day.timestamp === data.todayTimestamp;
+          var dt = new Date(day.timestamp * 1000);
+          var dateStr = pad2(dt.getDate()) + "." + pad2(dt.getMonth() + 1);
+          var title = isToday ? "Сьогодні (" + dateStr + ")" : "Завтра (" + dateStr + ")";
+          var changedForDay = changedMap["" + day.timestamp] || [];
+
+          html += '<div class="day-section">';
+          html += '<div class="day-title">' + title + "</div>";
+          html += '<table class="hours-table"><tr>';
+
+          for (var h = 1; h <= 24; h++) {
+            var code = day.hours["" + h] || "yes";
+            var halves = hourToHalves(code);
+            var cls = "hour-cell";
+            if (isToday && h === nowHour) cls += " is-now";
+            if (isToday && h < nowHour) cls += " is-past";
+            if (changedForDay.indexOf("" + h) !== -1) cls += " is-changed";
+
+            html += '<td class="' + cls + '">';
+            html += '<div class="hour-num">' + pad2(h - 1) + "</div>";
+            html += '<div class="hour-bar">';
+            html += '<span class="half bg-' + halves[0] + '"></span>';
+            html += '<span class="half bg-' + halves[1] + '"></span>';
+            html += "</div></td>";
+          }
+
+          html += "</tr></table></div>";
+        }
+
+        container.innerHTML = html;
+      }
+
+      function renderAll(data) {
+        lastData = data;
+        document.getElementById("queueBadge").innerHTML = formatQueueLabel(data.queue);
+        document.getElementById("updatedText").innerHTML =
+          "Оновлено ТОЕ: " + (data.sourceUpdate || "невідомо");
+
+        var banner = document.getElementById("changeBanner");
+        if (data.lastChange && data.lastChange.changedAt) {
+          var changedMs = new Date(data.lastChange.changedAt).getTime();
+          var ageMin = (new Date().getTime() - changedMs) / 60000;
+          if (ageMin <= 60) {
+            banner.innerHTML =
+              "УВАГА! Графік " +
+              data.queue.replace("GPV", "") +
+              " оновлено (" +
+              (data.lastChange.sourceUpdate || "щойно") +
+              ")!";
+            banner.className = "change-banner visible";
+          } else {
+            banner.className = "change-banner";
+          }
+        } else {
+          banner.className = "change-banner";
+        }
+
+        renderStatus(data);
+        renderDays(data);
+      }
+
+      function fetchSchedule() {
+        var xhr = new XMLHttpRequest();
+        xhr.open(
+          "GET",
+          "/api/schedule?queue=" + encodeURIComponent(currentQueue) + "&_t=" + new Date().getTime(),
+          true
+        );
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+              try {
+                var data = JSON.parse(xhr.responseText);
+                renderAll(data);
+              } catch (e) {
+                document.getElementById("updatedText").innerHTML = "Помилка формату даних";
+              }
+            } else {
+              document.getElementById("updatedText").innerHTML = "Немає зв'язку із сервером";
+            }
+          }
+        };
+        xhr.send();
+      }
+
+      function switchQueue(delta) {
+        var idx = QUEUES.indexOf(currentQueue);
+        if (idx === -1) idx = 0;
+        idx = (idx + delta + QUEUES.length) % QUEUES.length;
+        currentQueue = QUEUES[idx];
+        try {
+          localStorage.setItem(STORAGE_KEY, currentQueue);
+        } catch (e) {}
+        document.getElementById("queueBadge").innerHTML = formatQueueLabel(currentQueue);
+        fetchSchedule();
+      }
+
+      // Remote control key handling (webOS + keyboard)
+      document.addEventListener("keydown", function (e) {
+        var code = e.keyCode || e.which;
+        if (code === 37) {
+          // Left arrow
+          switchQueue(-1);
+        } else if (code === 39) {
+          // Right arrow
+          switchQueue(1);
+        } else if (code === 13) {
+          // OK / Enter
+          fetchSchedule();
+        }
+      });
+
+      updateClock();
+      fetchSchedule();
+      setInterval(updateClock, 10000);
+      setInterval(function () {
+        if (lastData) renderStatus(lastData);
+      }, 30000);
+      setInterval(fetchSchedule, 60000);
+    })();
+  </script>
+</body>
+</html>

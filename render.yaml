@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: ternopil-svitlo
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DEFAULT_QUEUE
+        value: GPV5.1

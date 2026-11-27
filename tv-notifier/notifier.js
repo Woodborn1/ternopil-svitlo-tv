@@ -13,8 +13,9 @@ const TV_IP = process.env.TV_IP || config.tvIp;
 const QUEUE = process.env.QUEUE || config.queue || "GPV5.1";
 const POLL_MS = (config.pollIntervalMinutes || 2) * 60 * 1000;
 const NOTIFY_BEFORE = config.notifyBeforeMinutes || [30, 20, 10];
-const NOTICE_MS = (config.noticeSeconds || 60) * 1000; // how long each notice stays on screen
-const TOAST_REPEAT_MS = 5000;
+const TOAST_TIMES = config.toastTimes || 4; // each notice is shown this many times in a row
+const TOAST_REPEAT_MS = 4000;
+const NOTICE_MS = TOAST_TIMES * TOAST_REPEAT_MS;
 const NOTIFY_ON_MAYBE = config.notifyOnMaybe !== false;
 const IS_TEST = process.argv.includes("--test");
 const IS_TEST_CHANGE = process.argv.includes("--test-change");
@@ -107,30 +108,15 @@ function sendToast(message) {
     console.log("  (Телевізор зараз не в мережі / вимкнений, сповіщення пропущено)");
     return;
   }
-  // A plain toast vanishes after ~5 s. Prefer an alert window that we close
-  // ourselves after NOTICE_MS; if the TV refuses alerts, repeat the toast.
-  tvClient.request(
-    "ssap://system.notifications/createAlert",
-    { message, buttons: [{ label: "OK" }] },
-    (err, res) => {
-      if (!err && res && res.alertId) {
-        setTimeout(() => {
-          if (tvConnected) {
-            tvClient.request("ssap://system.notifications/closeAlert", { alertId: res.alertId }, () => {});
-          }
-        }, NOTICE_MS);
-        return;
-      }
-      console.log("  (alert недоступний, повторюю звичайне сповіщення)", err ? err.message || err : "");
-      repeatToast(message);
-    }
-  );
+  // webOS 3 has no long-lived alert and toasts last ~3 s, so show it TOAST_TIMES times in a row.
+  repeatToast(message);
 }
 
 function repeatToast(message) {
-  const endAt = Date.now() + NOTICE_MS;
+  let left = TOAST_TIMES;
   const send = () => {
-    if (!tvConnected || Date.now() >= endAt) return;
+    if (!tvConnected || left <= 0) return;
+    left--;
     tvClient.request("ssap://system.notifications/createToast", { message }, (err) => {
       if (err) console.error("[TV TOAST ERROR]", err.message || err);
     });
@@ -256,8 +242,8 @@ function checkUpcomingOutages() {
   if (currIdx === -1) return;
 
   const currState = slots[currIdx].state;
-  // Only warn before outage when power is currently ON
-  if (currState !== "on") return;
+  // Only warn while power is on (a "maybe" slot counts as on when maybe-alerts are off)
+  if (currState === "off" || (NOTIFY_ON_MAYBE && currState === "maybe")) return;
 
   // Find next transition to OFF (or MAYBE if enabled)
   for (let j = currIdx + 1; j < slots.length; j++) {

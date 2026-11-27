@@ -3,5 +3,5 @@
   "queue": "GPV5.1",
   "pollIntervalMinutes": 2,
   "notifyBeforeMinutes": [30, 20, 10],
-  "notifyOnMaybe": true
+  "notifyOnMaybe": false
 }
